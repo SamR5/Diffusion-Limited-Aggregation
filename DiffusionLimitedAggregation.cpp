@@ -188,7 +188,7 @@ void timer_callback(int) {
     }
     auto start(std::chrono::steady_clock::now());
     
-    for (int i=0; i<1000000; i++) {
+    for (int i=0; i<100000; i++) {
         check_collisions();
         update_particles();
     }
@@ -198,7 +198,7 @@ void timer_callback(int) {
     
     auto stop(std::chrono::steady_clock::now());
     auto duration(std::chrono::duration_cast<std::chrono::milliseconds>(stop-start));
-    std::cout << duration.count() << "ms\n";
+    //std::cout << duration.count() << "ms\n";
     glutTimerFunc(1000/FPS, timer_callback, 0);
 }
 
