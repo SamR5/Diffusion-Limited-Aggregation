@@ -5,7 +5,12 @@ This is a repository with multiple kind of Brownian trees
 
 
 ### DiffusionLimitedAggregation.cpp
-A seed is in the center and particles start on the edge of the window.  
+A seed is in the center and particles aggregate on the seed.  
+14/10/2019:
+ - The center is now (0, 0) and not (width/2, height/2).  
+ - Keeps track of the farthest particle from the center.  
+ - The particles are now generated at a distance of farthest+10 from center.  
+ - The collisions are now checked only if distance from center <= farthest.  
 
 ### Snowflake_1.cpp
 A seed is in the center, particles start on the right and only move in a cone between -PI/6 and PI/6.  

@@ -29,7 +29,7 @@ const float COLLISION_DISTANCE = DOT_RADIUS*2-OVERLAP_TOL;
 const float COLLISION_DISTANCE2 = COLLISION_DISTANCE*COLLISION_DISTANCE;
 
 struct Particle {
-    float x, y;
+    int x, y;
     void go() {
         //int xV(rand()%SPEED), yV(rand()%SPEED);
         //x += (rand()%2) ? xV : -xV;
@@ -38,14 +38,14 @@ struct Particle {
         y += (rand()%2) ? 1 : -1;
     }
     void border_control() {
-        if (x<0)
-            x=0;
-        else if (x>WIDTH)
-            x=WIDTH;
-        if (y<0)
-            y=0;
-        else if (y>HEIGHT)
-            y=HEIGHT;
+        if (x<-WIDTH/2)
+            x=-WIDTH/2;
+        else if (x>WIDTH/2)
+            x=WIDTH/2;
+        if (y<-HEIGHT/2)
+            y=-HEIGHT/2;
+        else if (y>HEIGHT/2)
+            y=HEIGHT/2;
     }
 };
 
@@ -55,6 +55,7 @@ void init_particles ();
 void add_new_particle(int n);
 void check_collisions();
 void update_particles();
+void check_out_of_bound();
 void draw_dot(float x, float y);
 
 Particle fixedParticles[MAX_PARTICLE];
@@ -63,21 +64,25 @@ Particle movingParticles[MAX_SIMULTANEOUS];
 int currentTotalParticles(0); // current amount of particles in screen
 int totalFixedParticles(0);
 
+// distance of the farthest particle from the center
+float farthest(10);
+
+
 bool is_collision(Particle& A, Particle& B) {
     float X(A.x - B.x), Y(A.y - B.y);
     if (std::abs(X) > COLLISION_DISTANCE)
         return false;
     else if (std::abs(Y) > COLLISION_DISTANCE)
         return false;
-    /*if (X > COLLISION_DISTANCE || -X > COLLISION_DISTANCE)
-        return false;
-    if (Y > COLLISION_DISTANCE || -Y > COLLISION_DISTANCE)
-        return false;*/
     return X*X + Y*Y < COLLISION_DISTANCE2;
 }
 
+float distance_from_center(Particle& p) {
+    return std::sqrt(p.x*p.x + p.y*p.y);
+}
+
 void init_particles () {
-    fixedParticles[0] = Particle {WIDTH/2, HEIGHT/2};
+    fixedParticles[0] = Particle {0, 0};
     totalFixedParticles++;
     currentTotalParticles++;
     for (int i=0; i<MAX_SIMULTANEOUS; i++) {
@@ -89,13 +94,12 @@ void add_new_particle(int n) {
     if (currentTotalParticles >= MAX_PARTICLE)
         return;
     Particle P;
-    // vertical sides or horizontal sides
-    if (rand()%2) {
-        P = {(rand()%2) ? 0 : WIDTH, rand()%HEIGHT};
-    }
-    else {
-        P = {rand()%WIDTH, (rand()%2) ? 0 : HEIGHT};
-    }
+    
+    int radius = farthest+10;
+    float angle = rand()%360;
+    angle *= PI / 180.0;
+    
+    P = {(int)(radius*std::cos(angle)), (int)(radius*std::sin(angle))};
     movingParticles[n] = P;
     currentTotalParticles++;
 }
@@ -105,12 +109,18 @@ void check_collisions() {
     // here for optimization purposes
     if (totalFixedParticles >= MAX_PARTICLE-1)
         return;
+    float tempDist;
     // i for the free and j for the fixed
-    for (int i=totalFixedParticles-1; i>=0; i--) {
-        for (int j=0; j<MAX_SIMULTANEOUS; j++) {
+    for (int j=0; j<MAX_SIMULTANEOUS; j++) {
+        tempDist = distance_from_center(movingParticles[j]);
+        if (tempDist > farthest+2)
+            continue;
+        for (int i=totalFixedParticles-1; i>=0; i--) {
             if (is_collision(fixedParticles[i], movingParticles[j])) {
                 fixedParticles[totalFixedParticles] = movingParticles[j];
                 totalFixedParticles++;
+                if (tempDist > farthest)
+                    farthest = tempDist+10;
                 add_new_particle(j);
                 break;
             }
@@ -122,6 +132,13 @@ void update_particles() {
     for (int i=0; i<MAX_SIMULTANEOUS; i++) {
         movingParticles[i].go();
         movingParticles[i].border_control();
+    }
+}
+
+void check_out_of_bound() {
+    for (int i=0; i<MAX_SIMULTANEOUS; i++) {
+        if (distance_from_center(movingParticles[i]) > farthest+20)
+            add_new_particle(i);
     }
 }
 
@@ -146,11 +163,9 @@ void display_callback() {
     glPointSize(1);
     glBegin(GL_POINTS);
     for (int i=0; i<totalFixedParticles; i++) {
-        //draw_dot(fixedParticles[i].x, fixedParticles[i].y);
-        //glRectf(fixedParticles[i].x, fixedParticles[i].y,
-        //        fixedParticles[i].x+1, fixedParticles[i].y+1);
         glVertex2f(fixedParticles[i].x, fixedParticles[i].y);
     }
+
     glEnd();
     glFlush();
     glutSwapBuffers();
@@ -160,9 +175,8 @@ void reshape_callback(int width, int height) {
     glViewport(0, 0, (GLsizei)width, (GLsizei) height);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    int margin(0);
-    glOrtho(0.0-margin, (double)WIDTH+margin,
-            0.0-margin, (double)HEIGHT+margin,
+    glOrtho(-WIDTH/2, WIDTH/2,
+            -HEIGHT/2, HEIGHT/2,
             -1.0, 0.0);
     glMatrixMode(GL_MODELVIEW);
 }
@@ -174,16 +188,17 @@ void timer_callback(int) {
     }
     auto start(std::chrono::steady_clock::now());
     
-    int newP(totalFixedParticles);
-    for (int i=0; i<100000; i++) {
+    for (int i=0; i<1000000; i++) {
         check_collisions();
         update_particles();
     }
+    check_out_of_bound();
+    
     glutPostRedisplay(); // run the display_callback function
     
     auto stop(std::chrono::steady_clock::now());
     auto duration(std::chrono::duration_cast<std::chrono::milliseconds>(stop-start));
-    //std::cout << duration.count() << "ms\n";
+    std::cout << duration.count() << "ms\n";
     glutTimerFunc(1000/FPS, timer_callback, 0);
 }
 
