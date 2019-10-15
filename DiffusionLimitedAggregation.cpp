@@ -13,27 +13,24 @@
 
 #define WIDTH 600
 #define HEIGHT 600
-#define FPS 10
+#define FPS 1
 
 #define PI 3.1415926
 #define TWO_PI 6.283185
 
 #define MAX_PARTICLE 10000
-#define MAX_SIMULTANEOUS 50
-#define DOT_RADIUS 1
+#define MAX_SIMULTANEOUS 100
+#define RADIUS 1
 #define SPEED 2
 #define OVERLAP_TOL 0
 
-const float COLLISION_DISTANCE = DOT_RADIUS*2-OVERLAP_TOL;
+const float COLLISION_DISTANCE = RADIUS*2-OVERLAP_TOL;
 // avoid the sqrt each for each distance calculus
 const float COLLISION_DISTANCE2 = COLLISION_DISTANCE*COLLISION_DISTANCE;
 
 struct Particle {
     int x, y;
     void go() {
-        //int xV(rand()%SPEED), yV(rand()%SPEED);
-        //x += (rand()%2) ? xV : -xV;
-        //y += (rand()%2) ? yV : -yV;
         x += (rand()%2) ? 1 : -1;
         y += (rand()%2) ? 1 : -1;
     }
@@ -91,7 +88,7 @@ void init_particles () {
 }
 
 void add_new_particle(int n) {
-    if (currentTotalParticles >= MAX_PARTICLE)
+    if (totalFixedParticles >= MAX_PARTICLE)
         return;
     Particle P;
     
@@ -113,14 +110,14 @@ void check_collisions() {
     // i for the free and j for the fixed
     for (int j=0; j<MAX_SIMULTANEOUS; j++) {
         tempDist = distance_from_center(movingParticles[j]);
-        if (tempDist > farthest+2)
+        if (tempDist > farthest+RADIUS)
             continue;
         for (int i=totalFixedParticles-1; i>=0; i--) {
             if (is_collision(fixedParticles[i], movingParticles[j])) {
                 fixedParticles[totalFixedParticles] = movingParticles[j];
                 totalFixedParticles++;
                 if (tempDist > farthest)
-                    farthest = tempDist+10;
+                    farthest = tempDist+RADIUS;
                 add_new_particle(j);
                 break;
             }
@@ -145,7 +142,7 @@ void check_out_of_bound() {
 void draw_dot(float x, float y) {
     glBegin(GL_POLYGON);
     for (float i=0; i<TWO_PI; i+=TWO_PI/10) {
-        glVertex2f(x + std::cos(i)*DOT_RADIUS, y + std::sin(i)*DOT_RADIUS);
+        glVertex2f(x + std::cos(i)*RADIUS, y + std::sin(i)*RADIUS);
     }
     glEnd();
 }
@@ -165,6 +162,10 @@ void display_callback() {
     for (int i=0; i<totalFixedParticles; i++) {
         glVertex2f(fixedParticles[i].x, fixedParticles[i].y);
     }
+    /*for (int i=0; i<MAX_SIMULTANEOUS; i++) {
+        glVertex2f(movingParticles[i].x, movingParticles[i].y);
+    }*/
+    
 
     glEnd();
     glFlush();
@@ -188,7 +189,7 @@ void timer_callback(int) {
     }
     auto start(std::chrono::steady_clock::now());
     
-    for (int i=0; i<100000; i++) {
+    for (int i=0; i<10000; i++) {
         check_collisions();
         update_particles();
     }
@@ -198,10 +199,9 @@ void timer_callback(int) {
     
     auto stop(std::chrono::steady_clock::now());
     auto duration(std::chrono::duration_cast<std::chrono::milliseconds>(stop-start));
-    //std::cout << duration.count() << "ms\n";
+    std::cout << duration.count() << "ms\n";
     glutTimerFunc(1000/FPS, timer_callback, 0);
 }
-
 
 int main(int argc, char **argv) {
     glutInit(&argc, argv); // initialize
