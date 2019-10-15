@@ -23,7 +23,7 @@
 #define DOT_RADIUS 1
 #define OVERLAP_TOL 0
 
-#define CIRCLE_RADIUS 350
+#define CIRCLE_RADIUS 230
 
 
 const float COLLISION_DISTANCE = DOT_RADIUS*2-OVERLAP_TOL;
@@ -31,7 +31,7 @@ const float COLLISION_DISTANCE = DOT_RADIUS*2-OVERLAP_TOL;
 const float COLLISION_DISTANCE2 = COLLISION_DISTANCE*COLLISION_DISTANCE;
 
 struct Particle {
-    float x, y;
+    int x, y;
     void go() {
         x += (rand()%2) ? 1 : -1;
         y += (rand()%2) ? 1 : -1;
@@ -89,12 +89,12 @@ void check_collisions() {
     // i for the free and j for the fixed
     for (int j=0; j<MAX_SIMULTANEOUS; j++) {
         double dist(movingParticles[j].distance_to_center());
-        if (dist < closest)
+        if (dist < closest-DOT_RADIUS*2)
             continue;
         for (int i=totalFixedParticles-1; i>=0; i--) {
             if (is_collision(fixedParticles[i], movingParticles[j])) {
-                if (dist > closest)
-                    closest = dist - 5;
+                if (dist < closest)
+                    closest = dist;
                 fixedParticles[totalFixedParticles] = movingParticles[j];
                 totalFixedParticles++;
                 add_new_particle(j);
@@ -154,8 +154,8 @@ void reshape_callback(int width, int height) {
     glViewport(0, 0, (GLsizei)width, (GLsizei) height);
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    glOrtho(-(double)WIDTH*0.75, (double)WIDTH*0.75,
-            -(double)HEIGHT*0.75, (double)HEIGHT*0.75,
+    glOrtho(-(double)WIDTH/2, (double)WIDTH/2,
+            -(double)HEIGHT/2, (double)HEIGHT/2,
             -1.0, 0.0);
     glMatrixMode(GL_MODELVIEW);
 }
@@ -168,7 +168,7 @@ void timer_callback(int) {
     auto start(std::chrono::steady_clock::now());
     
     int newP(totalFixedParticles);
-    for (int i=0; i<10000; i++) {
+    for (int i=0; i<100000; i++) {
         check_collisions();
         update_particles();
     }
